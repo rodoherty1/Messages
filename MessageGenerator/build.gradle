@@ -9,9 +9,8 @@ version = '1.0'
 
 repositories {
     mavenCentral()
-    maven {
-        url "http://repo.akka.io/snapshots/"
-    }
+    maven { url "http://repo.akka.io/snapshots/" }
+    maven { url "http://repo.spray.io" }
 }
 
 tasks.withType(ScalaCompile) {
@@ -23,6 +22,9 @@ dependencies {
     compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.3.9'
     compile group: 'org.scala-lang', name: 'scala-library', version: '2.11.6'
     compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.4-SNAPSHOT'
+    compile group: 'io.spray', name: 'spray-can', version: '1.3.1'
+    compile group: 'io.spray', name: 'spray-http', version: '1.3.1'
+    compile group: 'io.spray', name: 'spray-httpx', version: '1.3.1'
 
     compile 'org.scala-lang:scala-library:2.11.5'
     testCompile 'org.scalatest:scalatest_2.11:2+'

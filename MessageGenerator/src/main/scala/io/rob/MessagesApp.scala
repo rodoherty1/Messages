@@ -1,6 +1,9 @@
 package io.rob
 
+
 import java.util.concurrent._
+
+import com.sun.deploy.net.HttpResponse
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -8,6 +11,21 @@ import scala.util.{Failure, Success}
 import akka.actor.ActorSystem
 import scala.language.postfixOps
 import scala.concurrent.duration._
+import scala.concurrent.Future
+
+import akka.actor.ActorSystem
+import akka.util.Timeout
+import akka.pattern.ask
+import akka.io.IO
+
+import spray.can.Http
+import spray.http._
+import HttpMethods._
+
+// or, with making use of spray-httpx
+import spray.httpx.RequestBuilding._
+
+
 
 /**
  * Created on 02/04/15.
@@ -15,7 +33,7 @@ import scala.concurrent.duration._
 object MessagesApp extends App {
   val queue = new LinkedBlockingQueue[String]()
 
-  val actorSystem = ActorSystem()
+  implicit val actorSystem: ActorSystem = ActorSystem()
   val scheduler = actorSystem.scheduler
   implicit val executor = actorSystem.dispatcher
 
@@ -51,6 +69,20 @@ object MessagesApp extends App {
   def doRegularly(fn: => Unit, period:Long): Unit = {
     scheduler.schedule(0 seconds, period seconds)(fn)
   }
+
+  val systemActorSystem: ActorSystem = ActorSystem("system")
+
+  implicit val timeout: Timeout = Timeout(15.seconds)
+  import actorSystem.dispatcher // implicit execution context
+
+  val response: Future[HttpResponse] =
+    (IO(Http) ? HttpRequest(GET, Uri("http://spray.io"))).mapTo[HttpResponse]
+
+
+  val response2: Future[HttpResponse] =
+    (IO(Http) ? Get("http://spray.io")).mapTo[HttpResponse]
+
+
 
   installShutdownHook()
   doRegularly(createMessage, 5l)
