@@ -37,6 +37,9 @@ object MessagesApp extends App {
   val scheduler = actorSystem.scheduler
   implicit val executor = actorSystem.dispatcher
 
+  implicit val timeout: Timeout = Timeout(15.seconds)
+  import actorSystem.dispatcher // implicit execution context
+
   def createMessage = queue.offer("Hello")
 
   def readMessage(): Unit = {
@@ -44,10 +47,15 @@ object MessagesApp extends App {
       queue.poll(10l, TimeUnit.SECONDS)
     }
 
-    f.onComplete({
-      case Success(s) => println(s)
-      case Failure(e) => println(s"Failed with error $e")
-    })
+    val response: Future[HttpResponse] = (IO(Http) ? Get("http://spray.io")).mapTo[HttpResponse]
+
+    val statusCode: Future[Int] = f.flatMap(_ => response.map(response => response.getStatusCode))
+    statusCode.onComplete(code => println (s"Return Code: $code"))
+
+//    f.onComplete({
+//      case Success(s) => println (s)
+//      case Failure(e) => println(s"Failed with error $e")
+//    })
   }
 
   def installShutdownHook(): Unit = {
@@ -70,21 +78,9 @@ object MessagesApp extends App {
     scheduler.schedule(0 seconds, period seconds)(fn)
   }
 
-  val systemActorSystem: ActorSystem = ActorSystem("system")
-
-  implicit val timeout: Timeout = Timeout(15.seconds)
-  import actorSystem.dispatcher // implicit execution context
-
-  val response: Future[HttpResponse] =
-    (IO(Http) ? HttpRequest(GET, Uri("http://spray.io"))).mapTo[HttpResponse]
-
-
-  val response2: Future[HttpResponse] =
-    (IO(Http) ? Get("http://spray.io")).mapTo[HttpResponse]
-
-
+//  val systemActorSystem: ActorSystem = ActorSystem("system")
 
   installShutdownHook()
   doRegularly(createMessage, 5l)
-  doRegularly(readMessage, 5l)
+  doRegularly(readMessage(), 5l)
 }
