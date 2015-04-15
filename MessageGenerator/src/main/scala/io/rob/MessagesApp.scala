@@ -3,24 +3,19 @@ package io.rob
 
 import java.util.concurrent._
 
-import com.sun.deploy.net.HttpResponse
-
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-import akka.actor.ActorSystem
+import akka.actor.{Props, Actor, ActorSystem, ActorLogging}
 import scala.language.postfixOps
 import scala.concurrent.duration._
 import scala.concurrent.Future
 
-import akka.actor.ActorSystem
 import akka.util.Timeout
 import akka.pattern.ask
 import akka.io.IO
 
 import spray.can.Http
 import spray.http._
-import HttpMethods._
 
 // or, with making use of spray-httpx
 import spray.httpx.RequestBuilding._
@@ -33,12 +28,15 @@ import spray.httpx.RequestBuilding._
 object MessagesApp extends App {
   val queue = new LinkedBlockingQueue[String]()
 
-  implicit val actorSystem: ActorSystem = ActorSystem()
-  val scheduler = actorSystem.scheduler
-  implicit val executor = actorSystem.dispatcher
-
   implicit val timeout: Timeout = Timeout(15.seconds)
-  import actorSystem.dispatcher // implicit execution context
+
+  implicit val actorSystem: ActorSystem = ActorSystem("MessageActors")
+  implicit val ec = actorSystem.dispatcher
+
+  val messageWriterProps = Props[MessageWriter]
+  val messageWriter = actorSystem.actorOf(messageWriterProps)
+
+  val scheduler = actorSystem.scheduler
 
   def createMessage = queue.offer("Hello")
 
@@ -47,15 +45,15 @@ object MessagesApp extends App {
       queue.poll(10l, TimeUnit.SECONDS)
     }
 
-    val response: Future[HttpResponse] = (IO(Http) ? Get("http://spray.io")).mapTo[HttpResponse]
+    f onComplete {
+      case Success(message) => messageWriter ! Message(MessageType.ACCEPTED, message)
+      case Failure(e) => println (s"Error $e")
+    }
 
-    val statusCode: Future[Int] = f.flatMap(_ => response.map(response => response.getStatusCode))
-    statusCode.onComplete(code => println (s"Return Code: $code"))
-
-//    f.onComplete({
-//      case Success(s) => println (s)
-//      case Failure(e) => println(s"Failed with error $e")
-//    })
+//    val response: Future[HttpResponse] = (IO(Http) ? Get("http://spray.io")).mapTo[HttpResponse]
+//
+//    val statusCode: Future[Int] = f.flatMap(_ => response.map(response => response.getStatusCode))
+//    statusCode.onComplete(code => println (s"Return Code: $code"))
   }
 
   def installShutdownHook(): Unit = {
